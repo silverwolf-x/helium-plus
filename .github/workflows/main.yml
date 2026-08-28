@@ -159,8 +159,9 @@ jobs:
               find "$locales_dir" -type f ! -name 'zh-CN.pak' ! -name 'en-US.pak' -delete
             done
 
-            # Updater scripts live beside App/, Cache/, Data/ in the package root
-            cp -f "$GITHUB_WORKSPACE/update.cmd" "$package_dir/update.cmd"
+            # Updater scripts live beside App/, Cache/, Data/ in the package root.
+            # Git stores text as LF; cmd.exe requires CRLF for reliable batch parsing.
+            python3 -c 'import sys; from pathlib import Path; data=Path(sys.argv[1]).read_bytes().replace(b"\r\n", b"\n").replace(b"\r", b"\n"); Path(sys.argv[2]).write_bytes(data.replace(b"\n", b"\r\n"))' "$GITHUB_WORKSPACE/update.cmd" "$package_dir/update.cmd"
             cp -f "$GITHUB_WORKSPACE/update.ps1" "$package_dir/update.ps1"
 
             # Version marker
@@ -172,6 +173,7 @@ jobs:
             test -f "$package_dir/App/version.dll"
             test -f "$package_dir/update.cmd"
             test -f "$package_dir/update.ps1"
+            python3 -c 'import sys; from pathlib import Path; data=Path(sys.argv[1]).read_bytes(); assert b"\r\n" in data and b"\n" not in data.replace(b"\r\n", b"")' "$package_dir/update.cmd"
             test -f "$package_dir/$release_tag"
             test -d "$package_dir/Cache"
             test -d "$package_dir/Data"
