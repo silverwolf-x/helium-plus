@@ -184,8 +184,8 @@ jobs:
       - name: Create release archives
         shell: bash
         run: |
-          7z a "${{ steps.build.outputs.x64_package_dir }}.7z" "${{ steps.build.outputs.x64_package_dir }}"
-          7z a "${{ steps.build.outputs.arm64_package_dir }}.7z" "${{ steps.build.outputs.arm64_package_dir }}"
+          zip -r "${{ steps.build.outputs.x64_package_dir }}.zip" "${{ steps.build.outputs.x64_package_dir }}"
+          zip -r "${{ steps.build.outputs.arm64_package_dir }}.zip" "${{ steps.build.outputs.arm64_package_dir }}"
 
       - name: Publish release
         if: ${{ needs.check.outputs.should_run && github.event_name != 'workflow_dispatch' }}
@@ -194,8 +194,8 @@ jobs:
         shell: bash
         run: |
           gh release create "${{ steps.build.outputs.release_tag }}" \
-            "${{ steps.build.outputs.x64_package_dir }}.7z" \
-            "${{ steps.build.outputs.arm64_package_dir }}.7z" \
+            "${{ steps.build.outputs.x64_package_dir }}.zip" \
+            "${{ steps.build.outputs.arm64_package_dir }}.zip" \
             --repo "${{ github.repository }}" \
             --title "${{ steps.build.outputs.release_tag }}" \
             --notes "Portable Helium packaged with Chrome++. Available for x64 and arm64.
@@ -210,8 +210,8 @@ jobs:
         shell: bash
         run: |
           gh release create "${{ steps.build.outputs.release_tag }}" \
-            "${{ steps.build.outputs.x64_package_dir }}.7z" \
-            "${{ steps.build.outputs.arm64_package_dir }}.7z" \
+            "${{ steps.build.outputs.x64_package_dir }}.zip" \
+            "${{ steps.build.outputs.arm64_package_dir }}.zip" \
             --repo "${{ github.repository }}" \
             --title "${{ steps.build.outputs.release_tag }}" \
             --draft \

@@ -18,7 +18,7 @@ Helium 是一个注重隐私的 Chromium 分支，完全兼容 Chrome 扩展。�
 - 无需安装，解压即用
 - 仅保留 `zh-CN` 和 `en-US` 语言包以缩减体积
 - 同时提供 x64 和 arm64 两个架构版本
-- Release 使用 7z 格式打包
+- Release 使用 zip 格式打包
 - 通过 GitHub Actions 每日自动构建
 
 **更新机制：**
