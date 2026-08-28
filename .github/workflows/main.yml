@@ -60,6 +60,9 @@ jobs:
     needs: check
     if: ${{ needs.check.outputs.should_run || github.event_name == 'workflow_dispatch' }}
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Download Helium x64
         uses: robinraju/release-downloader@main
         with:
@@ -156,6 +159,10 @@ jobs:
               find "$locales_dir" -type f ! -name 'zh-CN.pak' ! -name 'en-US.pak' -delete
             done
 
+            # Updater scripts live beside App/, Cache/, Data/ in the package root
+            cp -f "$GITHUB_WORKSPACE/update.cmd" "$package_dir/update.cmd"
+            cp -f "$GITHUB_WORKSPACE/update.ps1" "$package_dir/update.ps1"
+
             # Version marker
             touch "$package_dir/$release_tag"
 
@@ -163,6 +170,9 @@ jobs:
             test -f "$package_dir/App/chrome.exe"
             test -f "$package_dir/App/chrome++.ini"
             test -f "$package_dir/App/version.dll"
+            test -f "$package_dir/update.cmd"
+            test -f "$package_dir/update.ps1"
+            test -f "$package_dir/$release_tag"
             test -d "$package_dir/Cache"
             test -d "$package_dir/Data"
             echo "Package built: $package_dir"
