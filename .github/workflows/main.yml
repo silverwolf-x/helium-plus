@@ -61,10 +61,10 @@ jobs:
     if: ${{ needs.check.outputs.should_run || github.event_name == 'workflow_dispatch' }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Download Helium x64
-        uses: robinraju/release-downloader@main
+        uses: robinraju/release-downloader@v1
         with:
           repository: imputnet/helium-windows
           tag: ${{ needs.check.outputs.helium_tag }}
@@ -72,14 +72,14 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download Helium arm64
-        uses: robinraju/release-downloader@main
+        uses: robinraju/release-downloader@v1
         with:
           repository: imputnet/helium-windows
           tag: ${{ needs.check.outputs.helium_tag }}
           fileName: 'helium_*_arm64-installer.exe'
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: robinraju/release-downloader@main
+      - uses: robinraju/release-downloader@v1
         with:
           repository: Bush2021/chrome_plus
           tag: ${{ needs.check.outputs.chrome_plus_tag }}
@@ -182,13 +182,13 @@ jobs:
           done
 
       - name: Upload x64 Artifact
-        uses: actions/upload-artifact@main
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.build.outputs.x64_package_dir }}
           path: ${{ steps.build.outputs.x64_package_dir }}
 
       - name: Upload arm64 Artifact
-        uses: actions/upload-artifact@main
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.build.outputs.arm64_package_dir }}
           path: ${{ steps.build.outputs.arm64_package_dir }}
