@@ -1,4 +1,5 @@
-﻿## update-body.ps1 — Helium portable self-updater (production engine)
+﻿# encoding: utf-8
+## update-body.ps1 — Helium portable self-updater (production engine)
 ## 由 update.cmd 载入；也可由测试直接调用（用 HELIUM_UPDATE_* 环境变量注入 mock）。
 ##
 ## 原则：
@@ -13,11 +14,14 @@
 param([switch]$CheckOnly)
 $chk = $CheckOnly -or ($env:HUP_CHECK_ONLY -eq '1')
 
+$Utf8Encoding = New-Object System.Text.UTF8Encoding($false)
+[Console]::OutputEncoding = $Utf8Encoding
+$OutputEncoding = $Utf8Encoding
+
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 
-$GITHUB_API  = 'https://api.github.com'
 $DEFAULT_REPO = 'silverwolf-x/helium-plus'
 $PREF_ARCH = switch ($env:PROCESSOR_ARCHITECTURE) { 'AMD64' { 'x64' }; 'ARM64' { 'arm64' }; default { '' } }
 $repoArg = $null
@@ -68,18 +72,43 @@ $LocalTag = $markers[0]
 Log ('本地版本 : ' + $LocalTag)
 
 # ---------- 2. 最新 Release ----------
-$apiUrl = $env:HUP_API_URL
-if (-not $apiUrl) { $apiUrl = $GITHUB_API + '/repos/' + $Repo + '/releases/latest' }
+$DownloadHeaders = @{ 'User-Agent' = 'helium-updater/1.0' }
 Log ('更新源   : ' + $Repo)
 if ($env:HUP_RELEASE_JSON_PATH) {
   $relJson = $env:HUP_RELEASE_JSON_PATH
   if (-not (Test-Path -LiteralPath $relJson)) { Fail 3 ('mock release 文件不存在: ' + $relJson) }
   $Release = Get-Content -LiteralPath $relJson -Raw -Encoding UTF8 | ConvertFrom-Json
 } else {
-  try { $Release = Invoke-RestMethod -Uri $apiUrl -Method Get -Headers @{ 'User-Agent' = 'helium-updater/1.0' } }
-  catch { Fail 3 ('获取最新 release 失败: ' + $_.Exception.Message) }
+  try {
+    $latestPage = Invoke-WebRequest -Uri ('https://github.com/' + $Repo + '/releases/latest') -UseBasicParsing -Headers $DownloadHeaders
+    $finalUri = $null
+    if ($latestPage.BaseResponse.ResponseUri) {
+      $finalUri = $latestPage.BaseResponse.ResponseUri.AbsoluteUri
+    } elseif ($latestPage.BaseResponse.RequestMessage.RequestUri) {
+      $finalUri = $latestPage.BaseResponse.RequestMessage.RequestUri.AbsoluteUri
+    }
+    if (-not $finalUri) {
+      $tagLink = @($latestPage.Links | Where-Object { $_.href -match '/releases/tag/' } | Select-Object -First 1)[0]
+      if ($tagLink) { $finalUri = 'https://github.com' + $tagLink.href }
+    }
+    $tagMatch = [regex]::Match([string]$finalUri, '/releases/tag/(.+)$')
+    if (-not $tagMatch.Success) { throw '无法从 Release 页面解析最新版本地址' }
+    $rawTag = [Uri]::UnescapeDataString($tagMatch.Groups[1].Value)
+    $pageTag = Convert-Tag $rawTag
+    $pageAssets = @()
+    foreach ($pageArch in @('x64','arm64')) {
+      $pageName = 'helium_' + $pageTag + '_' + $pageArch + '-windows.zip'
+      $pageAssets += [pscustomobject]@{
+        name = $pageName
+        browser_download_url = 'https://github.com/' + $Repo + '/releases/download/' + [Uri]::EscapeDataString($rawTag) + '/' + [Uri]::EscapeDataString($pageName)
+      }
+    }
+    $Release = [pscustomobject]@{ tag_name = $rawTag; assets = $pageAssets }
+  } catch {
+    Fail 3 ('获取最新 release 页面失败: ' + $_.Exception.Message)
+  }
 }
-if (-not $Release -or -not $Release.tag_name) { Fail 3 'release 响应缺少 tag_name（可能无 release 或被限流）' }
+if (-not $Release -or -not $Release.tag_name) { Fail 3 'release 信息缺少 tag_name' }
 $LatestTag = Convert-Tag $Release.tag_name
 Log ('最新版本 : ' + $LatestTag)
 
@@ -119,7 +148,7 @@ if ($env:HUP_ZIP_PATH) {
   Copy-Item -LiteralPath $env:HUP_ZIP_PATH -Destination $zipPath -Force
 } else {
   Log ('下载中: ' + $Asset.browser_download_url)
-  try { Invoke-WebRequest -Uri $Asset.browser_download_url -OutFile $zipPath -UseBasicParsing -Headers @{ 'User-Agent' = 'helium-updater/1.0' } }
+  try { Invoke-WebRequest -Uri $Asset.browser_download_url -OutFile $zipPath -UseBasicParsing -Headers $DownloadHeaders }
   catch { Fail 3 ('下载失败: ' + $_.Exception.Message) }
 }
 
