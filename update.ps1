@@ -44,6 +44,8 @@ function Confirm-Yes {
   param([string]$prompt)
   if ($env:HUP_SKIP_PROMPTS -eq '1') { return ($env:HUP_AUTO_ANSWER -ne 'no') }
   $a = Read-Host $prompt
+  # Empty input (just Enter) defaults to yes.
+  if ($null -eq $a -or $a.Trim() -eq '') { return $true }
   return ($a.Trim().ToLowerInvariant() -in @('y','yes'))
 }
 function Compare-Version {
@@ -134,7 +136,7 @@ if ($chk) { Log ('[检测] 本地 ' + $LocalTag + ' → 最新 ' + $LatestTag + 
 Log ('[更新] ' + $LocalTag + ' → ' + $LatestTag)
 
 # ---------- 5. 确认下载 ----------
-if (-not (Confirm-Yes ('发现新版本 ' + $LatestTag + '，是否下载并更新？(y/n)'))) { Fail 1 '用户取消下载。' }
+if (-not (Confirm-Yes ('发现新版本 ' + $LatestTag + '，是否下载并更新？(Y/n)'))) { Fail 1 '用户取消下载。' }
 
 # ---------- 6. 下载 + 解压 + 结构校验（不触碰当前安装） ----------
 $workBase = Join-Path ([IO.Path]::GetTempPath()) ('helium_update_' + [guid]::NewGuid().ToString('N'))
@@ -194,13 +196,13 @@ function Get-PortableChrome {
 $procs = @(Get-PortableChrome)
 if ($procs.Count -gt 0) {
   Log ('检测到 ' + $procs.Count + ' 个本便携浏览器进程。需要关闭后才能替换。')
-  if (-not (Confirm-Yes ('是否关闭这些进程以继续更新？(y/n)'))) { Fail 5 '用户拒绝关闭浏览器，已退出。' }
+  if (-not (Confirm-Yes ('是否关闭这些进程以继续更新？(Y/n)'))) { Fail 5 '用户拒绝关闭浏览器，已退出。' }
   foreach ($p in $procs) { try { [void]$p.CloseMainWindow() } catch {}; Start-Sleep -Milliseconds 200 }
   $deadline = (Get-Date).AddSeconds(10)
   while ((@(Get-PortableChrome).Count -gt 0) -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 400 }
   $still = @(Get-PortableChrome)
   if ($still.Count -gt 0) {
-    if (-not (Confirm-Yes ('仍有 ' + $still.Count + ' 个进程未退出，是否强制结束？(y/n)'))) { Fail 5 '浏览器仍在运行，已退出。' }
+    if (-not (Confirm-Yes ('仍有 ' + $still.Count + ' 个进程未退出，是否强制结束？(Y/n)'))) { Fail 5 '浏览器仍在运行，已退出。' }
     foreach ($p in $still) { try { Stop-Process -Id $p.Id -Force -ErrorAction Stop } catch { Fail 5 ('无法强制结束进程 ' + $p.Id + ': ' + $_.Exception.Message) } }
     Start-Sleep -Seconds 2
     if (@(Get-PortableChrome).Count -gt 0) { Fail 5 '浏览器进程仍然存在，放弃更新。' }
